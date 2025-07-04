@@ -1,0 +1,15 @@
+{
+    "name": "capfc",
+    "version": "1.0.0",
+    "description": "SAP CAP FC Based Validation Plugin",
+    "repository": "https://github.com/zzsshalik/capfc",
+    "main": "cds-plugin.js",
+    "scripts": {
+        "test": "cd tests && npm run test"
+    },
+    "author": "Yauhen",
+    "license": "ISC",
+    "dependencies": {
+        "@sap/textbundle": "^5.4.0"
+    }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "capfc-showcase",
+  "version": "1.0.0",
+  "description": "A simple CAP project.",
+  "repository": "<Add your repository here>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap/cds": "^8.5.0",
+    "capfc": "file:..",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^1",
+    "@sap/eslint-plugin-cds": "^3",
+    "axios": "^1.8.2",
+    "chai": "^4.4.1",
+    "chai-as-promised": "^7.1.2",
+    "chai-subset": "^1.6.0",
+    "eslint": "^9",
+    "mocha": "^10.8.2"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "test": "mocha"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": "db.sqlite"
+        }
+      }
+    }
+  }
+}
