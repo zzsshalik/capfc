@@ -6,12 +6,12 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-    "@sap/cds": "^8.5.0",
+    "@sap/cds": "^9.0.1",
     "capfc": "file:..",
     "express": "^4"
   },
   "devDependencies": {
-    "@cap-js/sqlite": "^1",
+    "@cap-js/sqlite": "^2.0.2",
     "@sap/eslint-plugin-cds": "^3",
     "axios": "^1.8.2",
     "chai": "^4.4.1",
