@@ -8,11 +8,11 @@ cds.once("served", async () => {
 
     const configurationEntity = require(configurationFilePath);
 
-    srv.after("READ", csnEntity, async (entity) => FieldControls.calculateFieldControls(configurationEntity, entity));
+    srv.after("READ", csnEntity, async (entity) => FieldControls.calculateFieldControls(csnEntity, configurationEntity, entity));
     srv.after("UPDATE", csnEntity, async (update, req) => {
       const entityName = csnEntity.name.split('.').at(-1);
       const entity = await SELECT.one.from(csnEntity).where({ ID: update.ID })
-      const entityWithFCs = FieldControls.calculateFieldControls(configurationEntity, entity);
+      const entityWithFCs = FieldControls.calculateFieldControls(csnEntity, configurationEntity, entity);
 
       const { errors } = FieldControls.validatePayload(req, configurationEntity, entityWithFCs, csnEntity, update);
 
