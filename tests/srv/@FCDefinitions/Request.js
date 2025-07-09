@@ -9,11 +9,7 @@ const fieldControlConfigurations = {
                     'book.validation.title.minLength'
                 );
             }
-        },
-        onBeforeSave(entity, entityChanges) { },
-    },
-    description: {
-        fc: (book) => book.enableDetails ? fieldControlDictionary.Mandatory : fieldControlDictionary.Hidden,
+        }
     }
 };
 

@@ -11,12 +11,24 @@ entity Books {
       previewDate   : Date;
       statusCode    : String;
       price         : Integer;
-      to_Chapters   : Composition of many Chapters
-                        on to_Chapters.to_Books = $self
+      Author        : Association to Authors;
 }
 
-entity Chapters {
-  key ID       : UUID;
-      title    : String;
-      to_Books : Association to Books
+entity Authors {
+  key ID    : UUID;
+      name  : String;
+      Books : Composition of many Books
+                on Books.Author = $self;
+}
+
+
+entity Request {
+  key ID            : UUID;
+      title         : String;
+      Detail        : Composition of one Details;
+}
+
+entity Details {
+  key ID    : UUID;
+      title  : String;
 }

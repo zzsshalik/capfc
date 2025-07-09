@@ -3,15 +3,40 @@ using my.bookshop as my from '../db/data-model';
 
 service CatalogService {
     @FCSettings: {
-        path: 'srv/@FCDefinitions/Books.js',
-        defaultFC: 3
+        path     : 'srv/@FCDefinitions/Authors.js'
     }
-    entity Books    as
+    entity Authors   as
+        projection on my.Authors {
+            *,
+            virtual null as name_fc       : Integer @odata.Type: 'Edm.Byte',
+        };
+
+    @FCSettings: {
+        path     : 'srv/@FCDefinitions/Books.js'
+    }
+    entity Books   as
         projection on my.Books {
             *,
             virtual null as title_fc       : Integer @odata.Type: 'Edm.Byte',
             virtual null as description_fc : Integer @odata.Type: 'Edm.Byte',
+            virtual null as authorName_fc  : Integer @odata.Type: 'Edm.Byte',
         };
 
-    entity Chapters as projection on my.Chapters;
+    @FCSettings: {
+        path     : 'srv/@FCDefinitions/Request.js'
+    }
+    entity Request as
+        projection on my.Request {
+            *,
+            virtual null as title_fc : Integer @odata.Type: 'Edm.Byte',
+        };
+
+    @FCSettings: {
+        path     : 'srv/@FCDefinitions/Details.js'
+    }
+    entity Details as
+        projection on my.Details {
+            *,
+            virtual null as title_fc : Integer @odata.Type: 'Edm.Byte',
+        };
 }

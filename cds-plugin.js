@@ -8,7 +8,15 @@ cds.once("served", async () => {
 
     const configurationEntity = require(configurationFilePath);
 
-    srv.after("READ", csnEntity, async (entity) => FieldControls.calculateFieldControls(csnEntity, configurationEntity, entity));
+    srv.after("READ", csnEntity, async (entity) => {
+      // console.log(srv);
+      // csnEntity.name = 'CatalogService.Request'
+      // csnEntity.elements.Detail
+      // target = 'CatalogService.Details'
+      // type = 'cds.Composition'
+      // cds.services.CatalogService.entities.Details
+      return FieldControls.calculateFieldControls(csnEntity, configurationEntity, entity);
+    });
     srv.after("UPDATE", csnEntity, async (update, req) => {
       const entityName = csnEntity.name.split('.').at(-1);
       const entity = await SELECT.one.from(csnEntity).where({ ID: update.ID })

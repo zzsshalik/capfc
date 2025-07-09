@@ -1,7 +1,7 @@
 const { fieldControlDictionary } = require('capfc');
 
 const fieldControlConfigurations = {
-    title: {
+    name: {
         fc: () => fieldControlDictionary.Mandatory,
         validator(value, { i18n }) {
             if (!value || value.length < 10) {
@@ -9,12 +9,16 @@ const fieldControlConfigurations = {
                     'book.validation.title.minLength'
                 );
             }
-        },
-        onBeforeSave(entity, entityChanges) { },
-    },
-    description: {
-        fc: (book) => book.enableDetails ? fieldControlDictionary.Mandatory : fieldControlDictionary.Hidden,
+        }
     }
 };
+
+// addOnHAndler(fieldControlConfigurations, (req, next) => {
+//     this.srvFn();
+// })
+
+// addOnBeforeAll(fieldControlConfigurations, (req) => {
+//     this.fetchS4Data
+// })
 
 module.exports = fieldControlConfigurations;
