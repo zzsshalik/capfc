@@ -1,6 +1,6 @@
 {
     "name": "capfc",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "SAP CAP FC Based Validation Plugin",
     "repository": "https://github.com/zzsshalik/capfc",
     "main": "index.js",
