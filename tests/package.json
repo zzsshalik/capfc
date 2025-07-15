@@ -25,6 +25,7 @@
     "test": "mocha"
   },
   "cds": {
+    "enable:capfc:plugin": true,
     "requires": {
       "db": {
         "kind": "sqlite",
