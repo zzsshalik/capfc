@@ -1,11 +1,14 @@
 function extractFCSettings(annotations) {
-  if (!annotations) return null;
+  if (!annotations) {
+    return null;
+  }
 
   const FCSettings = {};
 
-  for (const [key, value] of Object.entries(annotations)) {
+  for (const [ key, value ] of Object.entries(annotations)) {
     if (key.startsWith('@FCSettings.')) {
       const prop = key.slice('@FCSettings.'.length);
+
       FCSettings[prop] = value;
     }
   }
@@ -14,12 +17,11 @@ function extractFCSettings(annotations) {
 }
 
 module.exports = class ServiceParser {
-
   static onEachFCEntity(services, callback) {
     for (const srv of services) {
       if (srv instanceof cds.ApplicationService) {
         Object.values(srv.entities).forEach((entity) => {
-          const FCSettings = extractFCSettings(entity?.['$flatAnnotations']);
+          const FCSettings = extractFCSettings(entity?.$flatAnnotations);
 
           FCSettings && callback(srv, entity, FCSettings);
         });

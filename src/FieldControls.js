@@ -6,10 +6,18 @@ const Utils = require('./Utils');
  * These values determine the visibility and editability of fields
  */
 const fieldControlDictionary = {
-  Mandatory: 7, // Visible, Editable, Required
-  Optional: 3, // Visible, Editable, Not Required
-  ReadOnly: 1, // Visible, Not Editable
-  Hidden: 0, // Not Visible
+
+  // Visible, Editable, Required
+  Mandatory: 7,
+
+  // Visible, Editable, Not Required
+  Optional: 3,
+
+  // Visible, Not Editable
+  ReadOnly: 1,
+
+  // Not Visible
+  Hidden: 0
 };
 
 /**
@@ -35,7 +43,7 @@ function calculateFieldControl(calculator, entity) {
  */
 function getFieldControlValues(data, csnEntityDefinition, i18n) {
   return Object.entries(csnEntityDefinition.elements).reduce(
-    (acc, [key, cdsDefinition]) => {
+    (acc, [ key, cdsDefinition ]) => {
       const fieldControlAnnotation = cdsDefinition['@Common.FieldControl'];
       const label = cdsDefinition['@Common.Label'];
 
@@ -46,11 +54,12 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
 
         acc[key] = {
           label: i18n.getText(label.replace('{i18n>', '').replace('}', '')),
-          fcValue,
+          fcValue
         };
 
         return acc;
       }
+
       return acc;
     },
     {}
@@ -63,61 +72,60 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
  * @param {string} annotationBindingPath Annotation binding path
  * @returns {Decimal | null} Decimal Value or null
  */
-function getFieldControlValue(record, annotationBindingPath) {
-  if (!annotationBindingPath) {
-    return null;
-  }
+// function getFieldControlValue(record, annotationBindingPath) {
+//   if (!annotationBindingPath) {
+//     return null;
+//   }
 
-  const fixedPathParts = annotationBindingPath.replace('_it.', '').split('.');
-  let tail = record;
+//   const fixedPathParts = annotationBindingPath.replace('_it.', '').split('.');
+//   let tail = record;
 
-  fixedPathParts.forEach((itemStringKey) => {
-    const tailValue = tail && tail[itemStringKey];
+//   fixedPathParts.forEach((itemStringKey) => {
+//     const tailValue = tail && tail[itemStringKey];
 
-    tail = tailValue;
-  });
+//     tail = tailValue;
+//   });
 
-  return tail;
-}
+//   return tail;
+// }
 
-/**
-* @param {Object} rootFcEntity Root Entity with Field Control values
-* @param {Object} entityDefinitionElements Action CDS definition
-* @param {string} fieldName Field name
-* @returns {object} Field Information
-*/
-function fieldInfoInEntity(rootFcEntity, entityDefinitionElements, fieldName) {
-  const fieldConfig = entityDefinitionElements[fieldName] || {};
-  const fieldControlConfig = fieldConfig['@Common.FieldControl'];
-  const { '=': fieldControlBindingPath, '#': fieldControlMandatory } = fieldControlConfig || {};
-  const fieldControlValue = getFieldControlValue(rootFcEntity, fieldControlBindingPath);
+//
+// @param {Object} rootFcEntity Root Entity with Field Control values
+// @param {Object} entityDefinitionElements Action CDS definition
+// @param {string} fieldName Field name
+// @returns {object} Field Information
+//
+// function fieldInfoInEntity(rootFcEntity, entityDefinitionElements, fieldName) {
+//   const fieldConfig = entityDefinitionElements[fieldName] || {};
+//   const fieldControlConfig = fieldConfig['@Common.FieldControl'];
+//   const { '=': fieldControlBindingPath, '#': fieldControlMandatory } = fieldControlConfig || {};
+//   const fieldControlValue = getFieldControlValue(rootFcEntity, fieldControlBindingPath);
 
-  const mandatoryShouldBeIgnored = ['cds.Association', 'cds.Composition'].includes(fieldConfig.type);
-  const editableShouldBeIgnored = mandatoryShouldBeIgnored || fieldConfig.virtual;
+//   const mandatoryShouldBeIgnored = [ 'cds.Association', 'cds.Composition' ].includes(fieldConfig.type);
+//   const editableShouldBeIgnored = mandatoryShouldBeIgnored || fieldConfig.virtual;
 
-  return {
-    mandatory: mandatoryShouldBeIgnored ? false : fieldControlMandatory || (fieldControlValue === fieldControlDictionary.Mandatory),
-    editable: editableShouldBeIgnored ? false : fieldControlMandatory || (fieldControlValue >= fieldControlDictionary.Optional)
-  };
-}
+//   return {
+//     mandatory: mandatoryShouldBeIgnored ? false : fieldControlMandatory || (fieldControlValue === fieldControlDictionary.Mandatory),
+//     editable: editableShouldBeIgnored ? false : fieldControlMandatory || (fieldControlValue >= fieldControlDictionary.Optional)
+//   };
+// }
 
 function getEntityFCSettings(entityDefinitionElements) {
   const { elements } = entityDefinitionElements;
 
-  const settings = Object.entries(elements).reduce((acc, [fieldName, element]) => {
+  const settings = Object.entries(elements).reduce((acc, [ fieldName, element ]) => {
     const elementFC = element['@Common.FieldControl'];
     const { '=': fieldControlBindingPath } = elementFC || {};
 
-    if(fieldControlBindingPath) {
-      acc[fieldName] = { fieldName, FCPath: fieldControlBindingPath }
+    if (fieldControlBindingPath) {
+      acc[fieldName] = { fieldName, FCPath: fieldControlBindingPath };
     }
 
     return acc;
-  }, {})
+  }, {});
 
   return settings;
 }
-
 
 /**
  * FieldControls class to handle the logic for field control values
@@ -159,6 +167,7 @@ class FieldControls {
 
   /**
    * Validates payload against field control configurations
+   * @param {Object} req - Request
    * @param {Object} FCConfigurations - Field control configurations
    * @param {Object} data - The data to validate
    * @param {Object} csnEntityDefinition - The CSN entity definition
@@ -166,11 +175,11 @@ class FieldControls {
    * @returns {Object} Validation results containing any errors
    */
   static validatePayload(
-    req,
-    FCConfigurations,
-    data,
-    csnEntityDefinition,
-    dataUpdate
+      req,
+      FCConfigurations,
+      data,
+      csnEntityDefinition,
+      dataUpdate
   ) {
     const i18n = Utils.getBoundI18nBundle(req);
 
@@ -181,20 +190,20 @@ class FieldControls {
     );
 
     const validationResults = Object.entries(dataUpdate).reduce(
-      (acc, [key, entityValue]) => {
+      (acc, [ key, entityValue ]) => {
         const { validator } = FCConfigurations[key] || {};
         const { fcValue, label } = fielControlAnnotationValues[key] || {};
 
         if (validator && fcValue >= fieldControlDictionary.Optional) {
           const validationMessage = validator(entityValue, {
             i18n,
-            entity: data,
+            entity: data
           });
 
           validationMessage &&
             acc.errors.push({
               fieldName: key,
-              message: validationMessage,
+              message: validationMessage
             });
         }
 
@@ -204,7 +213,7 @@ class FieldControls {
         ) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('validation.message.readOnly', [label]),
+            message: i18n.getText('validation.message.readOnly', [ label ])
           });
         }
         if (
@@ -213,7 +222,7 @@ class FieldControls {
         ) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('validation.message.required', [label]),
+            message: i18n.getText('validation.message.required', [ label ])
           });
         }
 
@@ -239,16 +248,18 @@ class FieldControls {
 
     const entitiesArray = Array.isArray(entities)
       ? entities
-      : [entities];
+      : [ entities ];
 
-    const processedEntities = entitiesArray.map(entity => {
+    const processedEntities = entitiesArray.map((entity) => {
       const entityFCsSettings = getEntityFCSettings(csnEntity);
       const fieldControls = Object.values(entityFCsSettings).reduce(
         (fcAcc, { fieldName, FCPath }) => {
           const fcValue = calculateFieldControl(fieldControlConfigurations[fieldName].fc, entity);
+
           if (fcValue !== null) {
             fcAcc[FCPath] = fcValue;
           }
+
           return fcAcc;
         },
         {}
@@ -267,5 +278,5 @@ class FieldControls {
 
 module.exports = {
   FieldControls,
-  fieldControlDictionary,
+  fieldControlDictionary
 };

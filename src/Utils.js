@@ -7,9 +7,7 @@
  * @returns {string} The formatted message string.
  */
 function formatMessage(msg, args) {
-  return args.reduce((result, val, i) => {
-    return result.replace(`{${i}}`, val);
-  }, msg);
+  return args.reduce((result, val, i) => result.replace(`{${ i }}`, val), msg);
 }
 
 module.exports = class Utils {
@@ -25,19 +23,20 @@ module.exports = class Utils {
     const locale = req.locale || 'en';
     const bundle = cds.i18n.bundle4();
     const texts = bundle.texts4(locale);
-    const msg = texts[key] || key
+    const msg = texts[key] || key;
+
     return formatMessage(msg, args || []);
   }
 
   /**
    * Retrieves a localized i18n text bundle instance bound to the given request's locale.
    *
-   * @param {import('@sap/cds/common').Request} [req=cds.context] - The CDS request context containing locale information.
-   * @returns {import('@sap/text-bundle').TextBundle} The localized TextBundle instance.
+   * @param {Request} [req=cds.context] - The CDS request context containing locale information.
+   * @returns {TextBundle} The localized TextBundle instance.
    */
   static getBoundI18nBundle(req) {
     return {
-      getText: (...args) => Utils.getText(req, ...args),
+      getText: (...args) => Utils.getText(req, ...args)
     };
   }
 };
