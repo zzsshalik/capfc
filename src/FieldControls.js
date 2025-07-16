@@ -48,9 +48,12 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
       const label = cdsDefinition['@Common.Label'];
 
       if (fieldControlAnnotation) {
+        const isMandatory = cdsDefinition['@mandatory'];
         const fieldControlValuePath = fieldControlAnnotation['='];
         const fcValue =
-          data[fieldControlValuePath] || fieldControlDictionary.Hidden;
+          data[fieldControlValuePath] ||
+          (isMandatory && fieldControlDictionary.Mandatory) ||
+          fieldControlDictionary.Optional;
 
         acc[key] = {
           label: i18n.getText(label.replace('{i18n>', '').replace('}', '')),
@@ -110,7 +113,7 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
 //   };
 // }
 
-function getEntityFCSettings(entityDefinitionElements) {
+function getEntityFCAnnotationsMapping(entityDefinitionElements) {
   const { elements } = entityDefinitionElements;
 
   const settings = Object.entries(elements).reduce((acc, [ fieldName, element ]) => {
@@ -132,66 +135,61 @@ function getEntityFCSettings(entityDefinitionElements) {
  * based on different conditions in the request or entity data
  */
 class FieldControls {
-  // static async calculateDynamicFields(
-  //   csnEntityDefinition,
-  //   FCConfigurations,
-  //   updatedEntry,
-  //   updateData
-  // ) {
-  //   const requests = Object.entries(FCConfigurations).reduce(
-  //     (requests, [fieldName, { onBeforeSave }]) => {
-  //       const fcValue = updatedEntry[`${fieldName}_fc`];
-  //       const fieldDefinition = csnEntityDefinition.elements[fieldName];
-  //       if (!fieldDefinition) {
-  //         return requests;
-  //       }
-  //       const finalFieldName =
-  //         fieldDefinition.type === 'cds.Association'
-  //           ? fieldDefinition['$generatedForeignKeys'].at(0)
-  //           : fieldName;
-  //       if (fcValue <= fieldControlDictionary.ReadOnly) {
-  //         updateData[finalFieldName] = null;
-  //       }
+  /**
+   * @param {object} csnEntity - CSN Entity Definition
+   * @param {object} configurationEntity - Field Control configurations
+   */
+  constructor(csnEntity, configurationEntity) {
+    this.csnEntity = csnEntity;
+    this.configurationEntity = configurationEntity;
+  }
 
-  //       if (onBeforeSave) {
-  //         requests.push(onBeforeSave(updatedEntry, updateData));
-  //       }
+  async calculateDynamicFields(updatedEntry, updateData) {
+    const requests = Object.entries(this.configurationEntity).reduce(
+      (requests, [ fieldName, { onBeforeSave }]) => {
+        const fcValue = updatedEntry[`${ fieldName }_fc`];
+        const fieldDefinition = this.csnEntity.elements[fieldName];
 
-  //       return requests;
-  //     },
-  //     []
-  //   );
+        if (!fieldDefinition) {
+          return requests;
+        }
 
-  //   return await Promise.all(requests);
-  // }
+        const finalFieldName =
+          fieldDefinition.type === 'cds.Association'
+            ? fieldDefinition.$generatedForeignKeys.at(0)
+            : fieldName;
+
+        if (fcValue <= fieldControlDictionary.ReadOnly) {
+          updateData[finalFieldName] = null;
+        }
+
+        if (onBeforeSave) {
+          requests.push(onBeforeSave(updatedEntry, updateData));
+        }
+
+        return requests;
+      },
+      []
+    );
+
+    return await Promise.all(requests);
+  }
 
   /**
    * Validates payload against field control configurations
    * @param {Object} req - Request
-   * @param {Object} FCConfigurations - Field control configurations
    * @param {Object} data - The data to validate
-   * @param {Object} csnEntityDefinition - The CSN entity definition
    * @param {Object} dataUpdate - The data update to validate against
    * @returns {Object} Validation results containing any errors
    */
-  static validatePayload(
-      req,
-      FCConfigurations,
-      data,
-      csnEntityDefinition,
-      dataUpdate
-  ) {
+  validatePayload(req, data, dataUpdate) {
     const i18n = Utils.getBoundI18nBundle(req);
 
-    const fielControlAnnotationValues = getFieldControlValues(
-      data,
-      csnEntityDefinition,
-      i18n
-    );
+    const fielControlAnnotationValues = getFieldControlValues(data, this.csnEntity, i18n);
 
     const validationResults = Object.entries(dataUpdate).reduce(
       (acc, [ key, entityValue ]) => {
-        const { validator } = FCConfigurations[key] || {};
+        const { validator } = this.configurationEntity[key] || {};
         const { fcValue, label } = fielControlAnnotationValues[key] || {};
 
         if (validator && fcValue >= fieldControlDictionary.Optional) {
@@ -213,7 +211,7 @@ class FieldControls {
         ) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('validation.message.readOnly', [ label ])
+            message: i18n.getText('capfc.validation.message.readOnly', [ label ])
           });
         }
         if (
@@ -222,7 +220,7 @@ class FieldControls {
         ) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('validation.message.required', [ label ])
+            message: i18n.getText('capfc.validation.message.required', [ label ])
           });
         }
 
@@ -236,12 +234,10 @@ class FieldControls {
 
   /**
    * Calculate field controls for an Entity or array of Entities
-   * @param {object} csnEntity - CSN Entity Definition
-   * @param {object} fieldControlConfigurations - Field Control configurations
    * @param {Object|Array} entities - Single entity or array of entities
    * @returns {Object|Array} Entity/Entities with field controls
    */
-  static calculateFieldControls(csnEntity, fieldControlConfigurations, entities) {
+  calculateFieldControls(entities) {
     if (!entities) {
       return entities;
     }
@@ -251,10 +247,14 @@ class FieldControls {
       : [ entities ];
 
     const processedEntities = entitiesArray.map((entity) => {
-      const entityFCsSettings = getEntityFCSettings(csnEntity);
+      const entityFCsSettings = getEntityFCAnnotationsMapping(this.csnEntity);
       const fieldControls = Object.values(entityFCsSettings).reduce(
         (fcAcc, { fieldName, FCPath }) => {
-          const fcValue = calculateFieldControl(fieldControlConfigurations[fieldName].fc, entity);
+          if (fcAcc.hasOwnProperty(FCPath)) {
+            return fcAcc;
+          }
+
+          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity);
 
           if (fcValue !== null) {
             fcAcc[FCPath] = fcValue;
