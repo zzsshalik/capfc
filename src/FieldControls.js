@@ -1,5 +1,59 @@
 const Utils = require('./Utils');
 
+class SymbolUtils {
+  constructor() {
+    this.symbolMap = new Map();
+  }
+
+  /**
+   * Adds a symbol-keyed value to the object
+   * @param {Object} target - The target object
+   * @param {string} name - A name/description for the symbol
+   * @param {*} value - The value to assign
+   * @returns {Symbol} - The symbol used
+   */
+  addSymbolProperty(target, name, value) {
+    const sym = Symbol(name);
+
+    target[sym] = value;
+    this.symbolMap.set(name, sym);
+
+    return sym;
+  }
+
+  /**
+   * Gets the value from an object by symbol name
+   * @param {Object} target - The target object
+   * @param {string} name - The name/description used to create the symbol
+   * @returns {*} - The value, or undefined
+   */
+  getValueByName(target, name) {
+    const sym = this.symbolMap.get(name);
+
+    return sym ? target[sym] : undefined;
+  }
+
+  /**
+   * Gets the value from an object using a symbol directly
+   * @param {Object} target - The target object
+   * @param {Symbol} symbol - The symbol used as a key
+   * @returns {*} - The value, or undefined
+   */
+  getValueBySymbol(target, symbol) {
+    return target[symbol];
+  }
+}
+
+const symbolUtils = new SymbolUtils();
+
+function setOnBeforeSave(obj, handler) {
+  symbolUtils.addSymbolProperty(obj, 'onBeforeSave', handler);
+}
+
+function getOnBeforeSave(obj) {
+  return symbolUtils.getValueByName(obj, 'onBeforeSave');
+}
+
 /**
  * https://sap.github.io/odata-vocabularies/vocabularies/Common.html#FieldControlType
  * Field control value constants
@@ -145,8 +199,10 @@ class FieldControls {
   }
 
   async calculateDynamicFields(updatedEntry, updateData) {
+    const onBeforeSave = getOnBeforeSave(this.configurationEntity);
+
     const requests = Object.entries(this.configurationEntity).reduce(
-      (requests, [ fieldName, { onBeforeSave }]) => {
+      (requests, [ fieldName ]) => {
         const fcValue = updatedEntry[`${ fieldName }_fc`];
         const fieldDefinition = this.csnEntity.elements[fieldName];
 
@@ -205,19 +261,14 @@ class FieldControls {
             });
         }
 
-        if (
-          fcValue <= fieldControlDictionary.ReadOnly &&
-          dataUpdate[key]
-        ) {
+        if (fcValue <= fieldControlDictionary.ReadOnly && dataUpdate[key]) {
           acc.errors.push({
             fieldName: key,
             message: i18n.getText('capfc.validation.message.readOnly', [ label ])
           });
         }
-        if (
-          entityValue === null &&
-          fcValue === fieldControlDictionary.Mandatory
-        ) {
+
+        if (entityValue === null && fcValue === fieldControlDictionary.Mandatory) {
           acc.errors.push({
             fieldName: key,
             message: i18n.getText('capfc.validation.message.required', [ label ])
@@ -278,5 +329,8 @@ class FieldControls {
 
 module.exports = {
   FieldControls,
-  fieldControlDictionary
+  fieldControlDictionary,
+  handlers: {
+    setOnBeforeSave
+  }
 };
