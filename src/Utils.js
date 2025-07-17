@@ -7,7 +7,7 @@
  * @returns {string} The formatted message string.
  */
 function formatMessage(msg, args) {
-  return args.reduce((result, val, i) => result.replace(`{${ i }}`, val), msg);
+  return args.reduce((result, val, i) => result.replace(`{${i}}`, val), msg);
 }
 
 module.exports = class Utils {

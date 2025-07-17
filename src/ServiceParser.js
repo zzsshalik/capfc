@@ -5,7 +5,7 @@ function extractFCSettings(annotations) {
 
   const FCSettings = {};
 
-  for (const [ key, value ] of Object.entries(annotations)) {
+  for (const [key, value] of Object.entries(annotations)) {
     if (key.startsWith('@FCSettings.')) {
       const prop = key.slice('@FCSettings.'.length);
 

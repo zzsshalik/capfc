@@ -9,8 +9,8 @@ function getEntityName(csnEntity) {
 function provideErrors(req, errors, csnEntity) {
   function buildPropertyString(descriptors) {
     return Object.entries(descriptors)
-    .map(([ key, desc ]) => `${ key }=${ desc.value }`)
-    .join(',');
+      .map(([key, desc]) => `${key}=${desc.value}`)
+      .join(',');
   }
 
   const params = buildPropertyString(Object.getOwnPropertyDescriptors(req.params[0]));
@@ -19,7 +19,7 @@ function provideErrors(req, errors, csnEntity) {
 
   errors.forEach(({ fieldName, message }) => {
     req.error({
-      target: `/${ entityName }(${ params })/${ fieldName }`,
+      target: `/${entityName}(${params})/${fieldName}`,
       message,
       description: message,
       code: 400
@@ -27,8 +27,8 @@ function provideErrors(req, errors, csnEntity) {
   });
 }
 
-module.exports = function(service) {
-  const services = Array.isArray(service) ? service : [ service ];
+module.exports = function (service) {
+  const services = Array.isArray(service) ? service : [service];
 
   ServiceParser.onEachFCEntity(services, async (srv, csnEntity, configuration) => {
     const configurationFilePath = path.resolve('./', configuration.path);
