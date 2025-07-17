@@ -97,7 +97,7 @@ function calculateFieldControl(calculator, entity) {
  */
 function getFieldControlValues(data, csnEntityDefinition, i18n) {
   return Object.entries(csnEntityDefinition.elements).reduce(
-    (acc, [ key, cdsDefinition ]) => {
+    (acc, [key, cdsDefinition]) => {
       const fieldControlAnnotation = cdsDefinition['@Common.FieldControl'];
       const label = cdsDefinition['@Common.Label'];
 
@@ -170,7 +170,7 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
 function getEntityFCAnnotationsMapping(entityDefinitionElements) {
   const { elements } = entityDefinitionElements;
 
-  const settings = Object.entries(elements).reduce((acc, [ fieldName, element ]) => {
+  const settings = Object.entries(elements).reduce((acc, [fieldName, element]) => {
     const elementFC = element['@Common.FieldControl'];
     const { '=': fieldControlBindingPath } = elementFC || {};
 
@@ -202,8 +202,8 @@ class FieldControls {
     const onBeforeSave = getOnBeforeSave(this.configurationEntity);
 
     const requests = Object.entries(this.configurationEntity).reduce(
-      (requests, [ fieldName ]) => {
-        const fcValue = updatedEntry[`${ fieldName }_fc`];
+      (requests, [fieldName]) => {
+        const fcValue = updatedEntry[`${fieldName}_fc`];
         const fieldDefinition = this.csnEntity.elements[fieldName];
 
         if (!fieldDefinition) {
@@ -219,14 +219,14 @@ class FieldControls {
           updateData[finalFieldName] = null;
         }
 
-        if (onBeforeSave) {
-          requests.push(onBeforeSave(updatedEntry, updateData));
-        }
-
         return requests;
       },
       []
     );
+
+    if (onBeforeSave) {
+      requests.push(onBeforeSave(updatedEntry, updateData));
+    }
 
     return await Promise.all(requests);
   }
@@ -244,7 +244,7 @@ class FieldControls {
     const fielControlAnnotationValues = getFieldControlValues(data, this.csnEntity, i18n);
 
     const validationResults = Object.entries(dataUpdate).reduce(
-      (acc, [ key, entityValue ]) => {
+      (acc, [key, entityValue]) => {
         const { validator } = this.configurationEntity[key] || {};
         const { fcValue, label } = fielControlAnnotationValues[key] || {};
 
@@ -264,14 +264,14 @@ class FieldControls {
         if (fcValue <= fieldControlDictionary.ReadOnly && dataUpdate[key]) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('capfc.validation.message.readOnly', [ label ])
+            message: i18n.getText('capfc.validation.message.readOnly', [label])
           });
         }
 
         if (entityValue === null && fcValue === fieldControlDictionary.Mandatory) {
           acc.errors.push({
             fieldName: key,
-            message: i18n.getText('capfc.validation.message.required', [ label ])
+            message: i18n.getText('capfc.validation.message.required', [label])
           });
         }
 
@@ -295,7 +295,7 @@ class FieldControls {
 
     const entitiesArray = Array.isArray(entities)
       ? entities
-      : [ entities ];
+      : [entities];
 
     const processedEntities = entitiesArray.map((entity) => {
       const entityFCsSettings = getEntityFCAnnotationsMapping(this.csnEntity);
