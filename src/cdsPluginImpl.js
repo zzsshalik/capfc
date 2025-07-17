@@ -6,20 +6,26 @@ function getEntityName(csnEntity) {
   return csnEntity.name.split('.').at(-1);
 }
 
-function provideErrors(req, errors, csnEntity) {
+function provideErrors(req, errors, csnEntity, targetPrefix) {
   function buildPropertyString(descriptors) {
     return Object.entries(descriptors)
-      .map(([key, desc]) => `${key}=${desc.value}`)
+      .map(([ key, desc ]) => `${ key }=${ desc.value }`)
       .join(',');
   }
 
-  const params = buildPropertyString(Object.getOwnPropertyDescriptors(req.params[0]));
+  function calculatePrefix() {
+    const params = buildPropertyString(Object.getOwnPropertyDescriptors(req.params[0]));
 
-  const entityName = getEntityName(csnEntity);
+    const entityName = getEntityName(csnEntity);
+
+    return `/${ entityName }(${ params })`;
+  }
+
+  const prefix = targetPrefix || calculatePrefix();
 
   errors.forEach(({ fieldName, message }) => {
     req.error({
-      target: `/${entityName}(${params})/${fieldName}`,
+      target: `${ prefix }/${ fieldName }`,
       message,
       description: message,
       code: 400
@@ -27,15 +33,15 @@ function provideErrors(req, errors, csnEntity) {
   });
 }
 
-module.exports = function (service) {
-  const services = Array.isArray(service) ? service : [service];
+module.exports = function(service) {
+  const services = Array.isArray(service) ? service : [ service ];
 
   ServiceParser.onEachFCEntity(services, async (srv, csnEntity, configuration) => {
     const configurationFilePath = path.resolve('./', configuration.path);
 
     const configurationEntity = require(configurationFilePath);
 
-    const fc = new FieldControls(csnEntity, configurationEntity);
+    const fc = new FieldControls(srv, csnEntity, configurationEntity);
 
     //
     // 1. Calculate FC for the DB record
@@ -43,7 +49,7 @@ module.exports = function (service) {
     // 3. Apply validations
     // 4. Compare FC from steps 1 and 2
     // 5. Erase Fields which changed their FCs from Optional/Mandatory to Readonly/Hidden
-    //
+
     async function UPDATEhandler(req, next) {
       const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
 
@@ -53,9 +59,29 @@ module.exports = function (service) {
 
       const { errors } = fc.validatePayload(req, dbRecordWithFCs, req.data);
 
-      provideErrors(req, errors, csnEntity);
+      configuration.liveValidations && provideErrors(req, errors, csnEntity);
 
-      await fc.calculateDynamicFields(dbRecordWithVirtualUpdate, req.data);
+      configuration.autoErase && fc.eraseUnavailableDynamicFields(dbRecordWithVirtualUpdate, req.data);
+
+      await fc.callOnBeforeSave(dbRecordWithVirtualUpdate, req.data);
+
+      const record = await next();
+
+      return fc.calculateFieldControls(record);
+    }
+
+    async function DRAFTPrepareHandler(req, next) {
+      const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
+
+      const dbRecordWithFCs = fc.calculateFieldControls(dbRecord);
+
+      const dbRecordWithVirtualUpdate = fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
+
+      const { errors } = fc.validatePayload(req, dbRecordWithFCs, dbRecordWithFCs);
+
+      provideErrors(req, errors, csnEntity, 'in');
+
+      await fc.callOnBeforeSave(dbRecordWithVirtualUpdate, req.data);
 
       const record = await next();
 
@@ -73,12 +99,13 @@ module.exports = function (service) {
     }
 
     if (csnEntity['@odata.draft.enabled']) {
+      srv.on('draftPrepare', DRAFTPrepareHandler);
       srv.on('NEW', csnEntity.drafts, CREATEhandler);
       srv.after('READ', csnEntity.drafts, READhandler);
       srv.on('UPDATE', csnEntity.drafts, UPDATEhandler);
     }
 
     srv.after('READ', csnEntity, READhandler);
-    srv.after('UPDATE', csnEntity, UPDATEhandler);
+    srv.on('UPDATE', csnEntity, UPDATEhandler);
   });
 };

@@ -1,9 +1,11 @@
+const defaultAnnotationValues = require('./defaultAnnotationValues');
+
 function extractFCSettings(annotations) {
   if (!annotations) {
     return null;
   }
 
-  const FCSettings = {};
+  const FCSettings = structuredClone(defaultAnnotationValues);
 
   for (const [key, value] of Object.entries(annotations)) {
     if (key.startsWith('@FCSettings.')) {
@@ -23,7 +25,7 @@ module.exports = class ServiceParser {
         Object.values(srv.entities).forEach((entity) => {
           const FCSettings = extractFCSettings(entity?.$flatAnnotations);
 
-          FCSettings && callback(srv, entity, FCSettings);
+          FCSettings && FCSettings.path && callback(srv, entity, FCSettings);
         });
       }
     }

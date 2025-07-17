@@ -190,18 +190,26 @@ function getEntityFCAnnotationsMapping(entityDefinitionElements) {
  */
 class FieldControls {
   /**
+   * @param {object} srv - SRV Definition
    * @param {object} csnEntity - CSN Entity Definition
    * @param {object} configurationEntity - Field Control configurations
    */
-  constructor(csnEntity, configurationEntity) {
+  constructor(srv, csnEntity, configurationEntity) {
+    this.srv = srv;
     this.csnEntity = csnEntity;
     this.configurationEntity = configurationEntity;
   }
 
-  async calculateDynamicFields(updatedEntry, updateData) {
+  async callOnBeforeSave(updatedEntry, updateData) {
     const onBeforeSave = getOnBeforeSave(this.configurationEntity);
 
-    const requests = Object.entries(this.configurationEntity).reduce(
+    if (onBeforeSave) {
+      onBeforeSave(updatedEntry, updateData, { srv: this.srv });
+    }
+  }
+
+  eraseUnavailableDynamicFields(updatedEntry, updateData) {
+    Object.entries(this.configurationEntity).reduce(
       (requests, [fieldName]) => {
         const fcValue = updatedEntry[`${fieldName}_fc`];
         const fieldDefinition = this.csnEntity.elements[fieldName];
@@ -223,12 +231,6 @@ class FieldControls {
       },
       []
     );
-
-    if (onBeforeSave) {
-      requests.push(onBeforeSave(updatedEntry, updateData));
-    }
-
-    return await Promise.all(requests);
   }
 
   /**
