@@ -54,6 +54,14 @@ function getOnBeforeSave(obj) {
   return symbolUtils.getValueByName(obj, 'onBeforeSave');
 }
 
+function setOnBeforeCalculateFC(obj, handler) {
+  symbolUtils.addSymbolProperty(obj, 'setOnBeforeCalculateFC', handler);
+}
+
+function getOnBeforeCalculateFC(obj) {
+  return symbolUtils.getValueByName(obj, 'setOnBeforeCalculateFC');
+}
+
 /**
  * https://sap.github.io/odata-vocabularies/vocabularies/Common.html#FieldControlType
  * Field control value constants
@@ -78,14 +86,15 @@ const fieldControlDictionary = {
  * Calculate field control for a specific field based on entity
  * @param {function} calculator - function which calculates FC value
  * @param {Object} entity - Entity data
+ * @param {Object} helperContext - Helper context
  * @returns {number|boolean} Field control value
  */
-function calculateFieldControl(calculator, entity) {
+function calculateFieldControl(calculator, entity, helperContext) {
   if (!calculator) {
     return fieldControlDictionary.ReadOnly;
   }
 
-  return calculator(entity);
+  return calculator(entity, helperContext);
 }
 
 /**
@@ -198,14 +207,27 @@ class FieldControls {
     this.srv = srv;
     this.csnEntity = csnEntity;
     this.configurationEntity = configurationEntity;
+    this.context = {};
   }
 
   async callOnBeforeSave(updatedEntry, updateData) {
     const onBeforeSave = getOnBeforeSave(this.configurationEntity);
 
     if (onBeforeSave) {
-      onBeforeSave(updatedEntry, updateData, { srv: this.srv });
+      onBeforeSave(updatedEntry, updateData, this.buildHelperObject());
     }
+  }
+
+  async callOnBeforeCalculateFC(updatedEntry, updateData) {
+    const onBeforeCalculateFC = getOnBeforeCalculateFC(this.configurationEntity);
+
+    if (onBeforeCalculateFC) {
+      return onBeforeCalculateFC(updatedEntry, updateData, this.buildHelperObject());
+    }
+  }
+
+  buildHelperObject() {
+    return { srv: this.srv, context: this.context };
   }
 
   eraseUnavailableDynamicFields(updatedEntry, updateData) {
@@ -290,7 +312,7 @@ class FieldControls {
    * @param {Object|Array} entities - Single entity or array of entities
    * @returns {Object|Array} Entity/Entities with field controls
    */
-  calculateFieldControls(entities) {
+  async calculateFieldControls(entities) {
     if (!entities) {
       return entities;
     }
@@ -299,7 +321,9 @@ class FieldControls {
       ? entities
       : [entities];
 
-    const processedEntities = entitiesArray.map((entity) => {
+    const processEntitiesRequests = entitiesArray.map(async (entity) => {
+      await this.callOnBeforeCalculateFC(entity, this.buildHelperObject());
+
       const entityFCsSettings = getEntityFCAnnotationsMapping(this.csnEntity);
       const fieldControls = Object.values(entityFCsSettings).reduce(
         (fcAcc, { fieldName, FCPath }) => {
@@ -307,7 +331,7 @@ class FieldControls {
             return fcAcc;
           }
 
-          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity);
+          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity, this.buildHelperObject());
 
           if (fcValue !== null) {
             fcAcc[FCPath] = fcValue;
@@ -323,6 +347,8 @@ class FieldControls {
       return entity;
     });
 
+    const processedEntities = Promise.all(processEntitiesRequests);
+
     return Array.isArray(entities)
       ? processedEntities
       : processedEntities[0];
@@ -333,6 +359,7 @@ module.exports = {
   FieldControls,
   fieldControlDictionary,
   handlers: {
-    setOnBeforeSave
+    setOnBeforeSave,
+    setOnBeforeCalculateFC
   }
 };

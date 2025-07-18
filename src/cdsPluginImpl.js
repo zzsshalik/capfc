@@ -53,9 +53,9 @@ module.exports = function(service) {
     async function UPDATEhandler(req, next) {
       const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
 
-      const dbRecordWithFCs = fc.calculateFieldControls(dbRecord);
+      const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
 
-      const dbRecordWithVirtualUpdate = fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
+      const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
 
       const { errors } = fc.validatePayload(req, dbRecordWithFCs, req.data);
 
@@ -67,15 +67,15 @@ module.exports = function(service) {
 
       const record = await next();
 
-      return fc.calculateFieldControls(record);
+      return await fc.calculateFieldControls(record);
     }
 
     async function DRAFTPrepareHandler(req, next) {
       const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
 
-      const dbRecordWithFCs = fc.calculateFieldControls(dbRecord);
+      const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
 
-      const dbRecordWithVirtualUpdate = fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
+      const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
 
       const { errors } = fc.validatePayload(req, dbRecordWithFCs, dbRecordWithFCs);
 
@@ -85,17 +85,17 @@ module.exports = function(service) {
 
       const record = await next();
 
-      return fc.calculateFieldControls(record);
+      return await fc.calculateFieldControls(record);
     }
 
     async function READhandler(entity) {
-      return fc.calculateFieldControls(entity);
+      return await fc.calculateFieldControls(entity);
     }
 
     async function CREATEhandler(req, next) {
       const record = await next();
 
-      return fc.calculateFieldControls(record);
+      return await fc.calculateFieldControls(record);
     }
 
     if (csnEntity['@odata.draft.enabled']) {
@@ -106,6 +106,6 @@ module.exports = function(service) {
     }
 
     srv.after('READ', csnEntity, READhandler);
-    srv.on('UPDATE', csnEntity, UPDATEhandler);
+    srv.after('UPDATE', csnEntity, UPDATEhandler);
   });
 };
