@@ -5,17 +5,29 @@ function extractFCSettings(annotations) {
     return null;
   }
 
-  const FCSettings = structuredClone(defaultAnnotationValues);
+  const FCSettings = {};
 
   for (const [key, value] of Object.entries(annotations)) {
     if (key.startsWith('@FCSettings.')) {
-      const prop = key.slice('@FCSettings.'.length);
+      const path = key.slice('@FCSettings.'.length).split('.');
+      let current = FCSettings;
 
-      FCSettings[prop] = value;
+      for (let i = 0; i < path.length - 1; i++) {
+        const segment = path[i];
+        if (!(segment in current)) {
+          current[segment] = {};
+        }
+        current = current[segment];
+      }
+
+      current[path[path.length - 1]] = value;
     }
   }
 
-  return Object.keys(FCSettings).length > 0 ? FCSettings : null;
+  // Merge with default values (if needed)
+  return Object.keys(FCSettings).length > 0
+    ? { ...structuredClone(defaultAnnotationValues), ...FCSettings }
+    : null;
 }
 
 module.exports = class ServiceParser {

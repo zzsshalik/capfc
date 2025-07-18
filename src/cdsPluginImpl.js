@@ -1,6 +1,7 @@
 const path = require('path');
 const ServiceParser = require('./ServiceParser.js');
 const { FieldControls } = require('./FieldControls.js');
+const symbolHelper = require('./SymbolHelper');
 
 function getEntityName(csnEntity) {
   return csnEntity.name.split('.').at(-1);
@@ -37,13 +38,29 @@ module.exports = function(service) {
   const services = Array.isArray(service) ? service : [ service ];
 
   ServiceParser.onEachFCEntity(services, async (srv, csnEntity, configuration) => {
+    const entityName = getEntityName(csnEntity);
     const configurationFilePath = path.resolve('./', configuration.path);
 
     const configurationEntity = require(configurationFilePath);
 
-    const fc = new FieldControls(srv, csnEntity, configurationEntity);
+    const fc = new FieldControls(srv, csnEntity, configurationEntity, configuration);
 
-    //
+
+    symbolHelper.addEntitityFCs(srv, { [entityName]: fc });
+
+    if (csnEntity['@odata.draft.enabled']) {
+      srv.on('draftPrepare', DRAFTPrepareHandler);
+      srv.on('NEW', csnEntity.drafts, CREATEhandler);
+      srv.after('READ', csnEntity.drafts, (e) => READhandler(e));
+      srv.on('UPDATE', csnEntity.drafts, UPDATEhandler);
+    }
+    // TO DO: review
+    srv.after('READ', csnEntity, (e) => READhandler(e));
+    srv.on('UPDATE', csnEntity, UPDATEhandler);
+
+
+
+
     // 1. Calculate FC for the DB record
     // 2. Merge DB record with changes and calculate FCs
     // 3. Apply validations
@@ -97,15 +114,5 @@ module.exports = function(service) {
 
       return await fc.calculateFieldControls(record);
     }
-
-    if (csnEntity['@odata.draft.enabled']) {
-      srv.on('draftPrepare', DRAFTPrepareHandler);
-      srv.on('NEW', csnEntity.drafts, CREATEhandler);
-      srv.after('READ', csnEntity.drafts, READhandler);
-      srv.on('UPDATE', csnEntity.drafts, UPDATEhandler);
-    }
-
-    srv.after('READ', csnEntity, READhandler);
-    srv.after('UPDATE', csnEntity, UPDATEhandler);
   });
 };

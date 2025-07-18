@@ -1,66 +1,5 @@
 const Utils = require('./Utils');
-
-class SymbolUtils {
-  constructor() {
-    this.symbolMap = new Map();
-  }
-
-  /**
-   * Adds a symbol-keyed value to the object
-   * @param {Object} target - The target object
-   * @param {string} name - A name/description for the symbol
-   * @param {*} value - The value to assign
-   * @returns {Symbol} - The symbol used
-   */
-  addSymbolProperty(target, name, value) {
-    const sym = Symbol(name);
-
-    target[sym] = value;
-    this.symbolMap.set(name, sym);
-
-    return sym;
-  }
-
-  /**
-   * Gets the value from an object by symbol name
-   * @param {Object} target - The target object
-   * @param {string} name - The name/description used to create the symbol
-   * @returns {*} - The value, or undefined
-   */
-  getValueByName(target, name) {
-    const sym = this.symbolMap.get(name);
-
-    return sym ? target[sym] : undefined;
-  }
-
-  /**
-   * Gets the value from an object using a symbol directly
-   * @param {Object} target - The target object
-   * @param {Symbol} symbol - The symbol used as a key
-   * @returns {*} - The value, or undefined
-   */
-  getValueBySymbol(target, symbol) {
-    return target[symbol];
-  }
-}
-
-const symbolUtils = new SymbolUtils();
-
-function setOnBeforeSave(obj, handler) {
-  symbolUtils.addSymbolProperty(obj, 'onBeforeSave', handler);
-}
-
-function getOnBeforeSave(obj) {
-  return symbolUtils.getValueByName(obj, 'onBeforeSave');
-}
-
-function setOnBeforeCalculateFC(obj, handler) {
-  symbolUtils.addSymbolProperty(obj, 'setOnBeforeCalculateFC', handler);
-}
-
-function getOnBeforeCalculateFC(obj) {
-  return symbolUtils.getValueByName(obj, 'setOnBeforeCalculateFC');
-}
+const symbolHelper = require('./SymbolHelper');
 
 /**
  * https://sap.github.io/odata-vocabularies/vocabularies/Common.html#FieldControlType
@@ -203,15 +142,15 @@ class FieldControls {
    * @param {object} csnEntity - CSN Entity Definition
    * @param {object} configurationEntity - Field Control configurations
    */
-  constructor(srv, csnEntity, configurationEntity) {
+  constructor(srv, csnEntity, configurationEntity, configuration) {
+    this.configuration = configuration;
     this.srv = srv;
     this.csnEntity = csnEntity;
     this.configurationEntity = configurationEntity;
-    this.context = {};
   }
 
   async callOnBeforeSave(updatedEntry, updateData) {
-    const onBeforeSave = getOnBeforeSave(this.configurationEntity);
+    const onBeforeSave = symbolHelper.getOnBeforeSave(this.configurationEntity);
 
     if (onBeforeSave) {
       onBeforeSave(updatedEntry, updateData, this.buildHelperObject());
@@ -219,7 +158,7 @@ class FieldControls {
   }
 
   async callOnBeforeCalculateFC(updatedEntry, updateData) {
-    const onBeforeCalculateFC = getOnBeforeCalculateFC(this.configurationEntity);
+    const onBeforeCalculateFC = symbolHelper.getOnBeforeCalculateFC(this.configurationEntity);
 
     if (onBeforeCalculateFC) {
       return onBeforeCalculateFC(updatedEntry, updateData, this.buildHelperObject());
@@ -227,7 +166,7 @@ class FieldControls {
   }
 
   buildHelperObject() {
-    return { srv: this.srv, context: this.context };
+    return { srv: this.srv, context: {} };
   }
 
   eraseUnavailableDynamicFields(updatedEntry, updateData) {
@@ -307,6 +246,22 @@ class FieldControls {
     return validationResults;
   }
 
+  async calculateAssociatedEntitiesFC(entity) {
+    const requests = Object.entries(this.configuration.useImpl).map(async ([associationName, targetSrvEntity]) => {
+      const record = entity[associationName];
+
+      if (!record) {
+        return;
+      }
+
+      const fc = symbolHelper.getEntitityFCs(this.srv)[targetSrvEntity];
+      
+      return await fc.calculateFieldControls(record);
+    });
+
+    return await Promise.all(requests);
+  }
+
   /**
    * Calculate field controls for an Entity or array of Entities
    * @param {Object|Array} entities - Single entity or array of entities
@@ -322,7 +277,11 @@ class FieldControls {
       : [entities];
 
     const processEntitiesRequests = entitiesArray.map(async (entity) => {
-      await this.callOnBeforeCalculateFC(entity, this.buildHelperObject());
+      const helperObject = this.buildHelperObject();
+
+      await this.calculateAssociatedEntitiesFC(entity);
+
+      await this.callOnBeforeCalculateFC(entity, helperObject);
 
       const entityFCsSettings = getEntityFCAnnotationsMapping(this.csnEntity);
       const fieldControls = Object.values(entityFCsSettings).reduce(
@@ -331,7 +290,7 @@ class FieldControls {
             return fcAcc;
           }
 
-          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity, this.buildHelperObject());
+          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity, helperObject);
 
           if (fcValue !== null) {
             fcAcc[FCPath] = fcValue;
@@ -347,7 +306,7 @@ class FieldControls {
       return entity;
     });
 
-    const processedEntities = Promise.all(processEntitiesRequests);
+    const processedEntities = await Promise.all(processEntitiesRequests);
 
     return Array.isArray(entities)
       ? processedEntities
@@ -359,7 +318,7 @@ module.exports = {
   FieldControls,
   fieldControlDictionary,
   handlers: {
-    setOnBeforeSave,
-    setOnBeforeCalculateFC
+    setOnBeforeSave: symbolHelper.setOnBeforeSave,
+    setOnBeforeCalculateFC: symbolHelper.setOnBeforeCalculateFC
   }
 };
