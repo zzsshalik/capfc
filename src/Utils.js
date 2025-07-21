@@ -11,6 +11,10 @@ function formatMessage(msg, args) {
 }
 
 module.exports = class Utils {
+  static getEntityName(csnEntity) {
+    return csnEntity.name.split('.').at(-1);
+  }
+
   /**
    * Retrieves a localized text for a given key and replaces placeholders with provided arguments.
    *

@@ -1,5 +1,5 @@
 const Utils = require('./Utils');
-const symbolHelper = require('./SymbolHelper');
+const { getOnBeforeCalculateFC, getOnBeforeSave, getOnAfterSave, setOnBeforeSave, setOnBeforeCalculateFC, setOnAfterSave, getSrvEntitiesFCs } = require('./SymbolHelper');
 
 /**
  * https://sap.github.io/odata-vocabularies/vocabularies/Common.html#FieldControlType
@@ -149,24 +149,32 @@ class FieldControls {
     this.configurationEntity = configurationEntity;
   }
 
-  async callOnBeforeSave(updatedEntry, updateData) {
-    const onBeforeSave = symbolHelper.getOnBeforeSave(this.configurationEntity);
-
-    if (onBeforeSave) {
-      onBeforeSave(updatedEntry, updateData, this.buildHelperObject());
-    }
-  }
-
   async callOnBeforeCalculateFC(updatedEntry, updateData) {
-    const onBeforeCalculateFC = symbolHelper.getOnBeforeCalculateFC(this.configurationEntity);
+    const onBeforeCalculateFC = getOnBeforeCalculateFC(this.configurationEntity);
 
     if (onBeforeCalculateFC) {
       return onBeforeCalculateFC(updatedEntry, updateData, this.buildHelperObject());
     }
   }
 
-  buildHelperObject() {
-    return { srv: this.srv, context: {} };
+  async callOnBeforeSave(updatedEntry, req) {
+    const onBeforeSave = getOnBeforeSave(this.configurationEntity);
+
+    if (onBeforeSave) {
+      onBeforeSave(updatedEntry, this.buildHelperObject({ req }));
+    }
+  }
+
+  async callOnAfterSave(updatedEntry, req) {
+    const onAfterSave = getOnAfterSave(this.configurationEntity);
+
+    if (onAfterSave) {
+      onAfterSave(updatedEntry, this.buildHelperObject({ req }));
+    }
+  }
+
+  buildHelperObject(obj) {
+    return Object.assign({}, { srv: this.srv, context: {} }, obj);
   }
 
   eraseUnavailableDynamicFields(updatedEntry, updateData) {
@@ -181,7 +189,7 @@ class FieldControls {
 
         const finalFieldName =
           fieldDefinition.type === 'cds.Association'
-            ? fieldDefinition.$generatedForeignKeys.at(0)
+            ? fieldDefinition.$generatedForeignKeys.at(0).name
             : fieldName;
 
         if (fcValue <= fieldControlDictionary.ReadOnly) {
@@ -254,8 +262,8 @@ class FieldControls {
         return;
       }
 
-      const fc = symbolHelper.getEntitityFCs(this.srv)[targetSrvEntity];
-      
+      const fc = getSrvEntitiesFCs(this.srv)[targetSrvEntity];
+
       return await fc.calculateFieldControls(record);
     });
 
@@ -290,7 +298,7 @@ class FieldControls {
             return fcAcc;
           }
 
-          const fcValue = calculateFieldControl(this.configurationEntity[fieldName]?.fc, entity, helperObject);
+          const fcValue = calculateFieldControl(this.configurationEntity[FCPath.replace('_fc', '')]?.fc, entity, helperObject);
 
           if (fcValue !== null) {
             fcAcc[FCPath] = fcValue;
@@ -318,7 +326,10 @@ module.exports = {
   FieldControls,
   fieldControlDictionary,
   handlers: {
-    setOnBeforeSave: symbolHelper.setOnBeforeSave,
-    setOnBeforeCalculateFC: symbolHelper.setOnBeforeCalculateFC
+    setOnBeforeSave,
+    setOnBeforeCalculateFC,
+
+    getOnAfterSave,
+    setOnAfterSave,
   }
 };
