@@ -43,7 +43,7 @@ function bindHandles(fc) {
 
         const { errors } = fc.validatePayload(req, dbRecordWithVirtualUpdate, req.data);
 
-        fc.configuration.liveValidations && provideErrors(req, errors, csnEntity);
+        fc.configuration.liveValidations && provideErrors(req, errors, fc.csnEntity);
 
         fc.configuration.autoErase && fc.eraseUnavailableDynamicFields(dbRecordWithVirtualUpdate, req.data);
 
@@ -63,7 +63,7 @@ function bindHandles(fc) {
 
         const { errors } = fc.validatePayload(req, dbRecordWithFCs, dbRecordWithFCs);
 
-        provideErrors(req, errors, csnEntity, 'in');
+        provideErrors(req, errors, fc.csnEntity, 'in');
 
         await fc.callOnBeforeSave(dbRecordWithVirtualUpdate, req);
 
