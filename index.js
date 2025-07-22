@@ -2,12 +2,16 @@
 
 const { fieldControlDictionary, handlers } = require('./src/FieldControls');
 const cdsPluginImpl = require('./src/cdsPluginImpl');
-const { execAfterREADHandler, execUPDATEHandler } = require('./src/Handlers');
+const { execAfterREADHandler, execUPDATEHandler, validateWithFCs, provideErrors, throwErrorsAndStopIfExists, validateAndThowErrorsIfExists } = require('./src/Handlers');
 
 module.exports = {
     fieldControlDictionary,
     init: cdsPluginImpl,
     ...handlers,
     execAfterREADHandler,
-    execUPDATEHandler
+    execUPDATEHandler,
+    validateWithFCs,
+    provideErrors,
+    throwErrorsAndStopIfExists,
+    validateAndThowErrorsIfExists
 };

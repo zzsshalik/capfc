@@ -29,19 +29,29 @@ function bindHandles(fc) {
         });
     }
 
+    async function validateWithFCs(req, dataForValidation) {
+        const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
+
+        // const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
+
+        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, dataForValidation));
+
+        const { errors } = fc.validatePayload(req, dbRecordWithVirtualUpdate, req.data);
+
+        return {
+            dbRecord,
+            dbRecordWithVirtualUpdate,
+            errors
+        }
+    }
+
     // 1. Calculate FC for the DB record
     // 2. Merge DB record with changes and calculate FCs
     // 3. Apply validations
     // 4. Compare FC from steps 1 and 2
     // 5. Erase Fields which changed their FCs from Optional/Mandatory to Readonly/Hidden
     async function UPDATEHandler(req, next) {
-        const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
-
-        const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
-
-        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
-
-        const { errors } = fc.validatePayload(req, dbRecordWithVirtualUpdate, req.data);
+        const { errors, dbRecordWithVirtualUpdate } = await validateWithFCs(req, req.data);
 
         fc.configuration.liveValidations && provideErrors(req, errors, fc.csnEntity);
 
@@ -88,25 +98,62 @@ function bindHandles(fc) {
         UPDATEHandler,
         DRAFTPrepareHandler,
         READHandler,
-        CreateDraftHandler
+        CreateDraftHandler,
+        validateWithFCs,
+        provideErrors
     }
 }
 
-async function execAfterREADHandler(entity, req) {
+function provideErrors(req, errors, targetPrefix) {
     const fc = getEntityFC(req.target);
 
-    const { READHandler } = bindHandles(fc);
+    const { provideErrors } = bindHandles(fc);
 
-    return await READHandler(entity);
+    return provideErrors(req, errors, fc.csnEntity, targetPrefix);
 }
 
-async function execUPDATEHandler(req, next) {
+function throwErrorsAndStopIfExists(req, ...args) {
+    provideErrors(req, ...args);
+
+    if (req?.errors?.length) {
+        req.reject();
+    }
+}
+
+async function validateWithFCs(req, dataForValidation) {
     const fc = getEntityFC(req.target);
 
-    const { UPDATEHandler } = bindHandles(fc);
+    const { validateWithFCs } = bindHandles(fc);
 
-    return await UPDATEHandler(req, next);
-
+    return (await validateWithFCs(req, dataForValidation)).errors;
 }
 
-module.exports = { bindHandles, execAfterREADHandler, execUPDATEHandler };
+module.exports = {
+    bindHandles,
+    async execAfterREADHandler(entity, req) {
+        const fc = getEntityFC(req.target);
+
+        const { READHandler } = bindHandles(fc);
+
+        return await READHandler(entity);
+    },
+
+    async execUPDATEHandler(req, next) {
+        const fc = getEntityFC(req.target);
+
+        const { UPDATEHandler } = bindHandles(fc);
+
+        return await UPDATEHandler(req, next);
+
+    },
+
+    validateWithFCs,
+
+    async validateAndThowErrorsIfExists(req, dataForValidation, targetPrefix) {
+        throwErrorsAndStopIfExists(req, await validateWithFCs(req, dataForValidation), targetPrefix);
+    },
+
+    provideErrors,
+
+    throwErrorsAndStopIfExists
+};
