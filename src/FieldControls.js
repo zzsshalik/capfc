@@ -58,7 +58,7 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
           fieldControlDictionary.Optional;
 
         acc[key] = {
-          label: i18n.getText(label.replace('{i18n>', '').replace('}', '')),
+          label: label ? i18n.getText(label.replace('{i18n>', '').replace('}', '')) : '',
           fcValue
         };
 
