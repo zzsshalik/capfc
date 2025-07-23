@@ -3,7 +3,7 @@ const ServiceParser = require('./ServiceParser.js');
 const { FieldControls } = require('./FieldControls.js');
 const Utils = require('./Utils.js');
 const { setEntityFC, addSrvEntitiesFCs } = require('./SymbolHelper');
-const { bindHandles } = require('./Handlers');
+const { bindHandlers } = require('./Handlers');
 
 module.exports = function (service) {
   const services = Array.isArray(service) ? service : [service];
@@ -24,7 +24,7 @@ module.exports = function (service) {
       DRAFTPrepareHandler,
       READHandler,
       CreateDraftHandler
-    } = bindHandles(fc);
+    } = bindHandlers(fc);
 
     // --------
     // srv.on('draftActivate', csnEntity.drafts, (req) => {

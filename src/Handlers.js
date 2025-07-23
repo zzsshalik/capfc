@@ -1,7 +1,7 @@
 const Utils = require('./Utils.js');
 const { getEntityFC } = require('./SymbolHelper');
 
-function bindHandles(fc) {
+function bindHandlers(fc) {
     function provideErrors(req, errors, csnEntity, targetPrefix) {
         function buildPropertyString(descriptors) {
             return Object.entries(descriptors)
@@ -107,7 +107,7 @@ function bindHandles(fc) {
 function provideErrors(req, errors, targetPrefix) {
     const fc = getEntityFC(req.target);
 
-    const { provideErrors } = bindHandles(fc);
+    const { provideErrors } = bindHandlers(fc);
 
     return provideErrors(req, errors, fc.csnEntity, targetPrefix);
 }
@@ -123,17 +123,17 @@ function throwErrorsAndStopIfExists(req, ...args) {
 async function validateWithFCs(req, dataForValidation) {
     const fc = getEntityFC(req.target);
 
-    const { validateWithFCs } = bindHandles(fc);
+    const { validateWithFCs } = bindHandlers(fc);
 
     return (await validateWithFCs(req, dataForValidation)).errors;
 }
 
 module.exports = {
-    bindHandles,
+    bindHandlers,
     async execAfterREADHandler(entity, req) {
         const fc = getEntityFC(req.target);
 
-        const { READHandler } = bindHandles(fc);
+        const { READHandler } = bindHandlers(fc);
 
         return await READHandler(entity);
     },
@@ -141,7 +141,7 @@ module.exports = {
     async execUPDATEHandler(req, next) {
         const fc = getEntityFC(req.target);
 
-        const { UPDATEHandler } = bindHandles(fc);
+        const { UPDATEHandler } = bindHandlers(fc);
 
         return await UPDATEHandler(req, next);
 
