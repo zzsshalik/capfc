@@ -50,7 +50,7 @@ function bindHandlers(fc) {
     // 3. Apply validations
     // 4. Compare FC from steps 1 and 2
     // 5. Erase Fields which changed their FCs from Optional/Mandatory to Readonly/Hidden
-    async function UPDATEHandler(req, next) {
+    async function UPDATEHandler(req, next, context) {
         const { errors, dbRecordWithVirtualUpdate } = await validateWithFCs(req, req.data);
 
         fc.configuration.liveValidations && provideErrors(req, errors, fc.csnEntity);
@@ -61,7 +61,7 @@ function bindHandlers(fc) {
 
         const record = await next();
 
-        return await fc.calculateFieldControls(record, req);
+        return await fc.calculateFieldControls(record, req, context);
     }
 
     async function DRAFTPrepareHandler(req, next) {
@@ -84,8 +84,8 @@ function bindHandlers(fc) {
         return await fc.calculateFieldControls(record, req);
     }
 
-    async function READHandler(entity, req) {
-        return await fc.calculateFieldControls(entity, req);
+    async function READHandler(entity, req, context) {
+        return await fc.calculateFieldControls(entity, req, context);
     }
 
     async function CreateDraftHandler(req, next) {
@@ -135,20 +135,20 @@ module.exports = {
         return await fc.calculateFieldControls(data, req, context);
     },
     bindHandlers,
-    async execAfterREADHandler(entity, req) {
+    async execAfterREADHandler(entity, req, context) {
         const fc = getEntityFC(req.target);
 
         const { READHandler } = bindHandlers(fc);
 
-        return await READHandler(entity, req);
+        return await READHandler(entity, req, context);
     },
 
-    async execUPDATEHandler(req, next) {
+    async execUPDATEHandler(req, next, context) {
         const fc = getEntityFC(req.target);
 
         const { UPDATEHandler } = bindHandlers(fc);
 
-        return await UPDATEHandler(req, next);
+        return await UPDATEHandler(req, next, context);
 
     },
 
