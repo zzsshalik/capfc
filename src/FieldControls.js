@@ -149,11 +149,11 @@ class FieldControls {
     this.configurationEntity = configurationEntity;
   }
 
-  async callOnBeforeCalculateFC(updatedEntry, updateData) {
+  async callOnBeforeCalculateFC(updatedEntry, helperObject) {
     const onBeforeCalculateFC = getOnBeforeCalculateFC(this.configurationEntity);
 
     if (onBeforeCalculateFC) {
-      return onBeforeCalculateFC(updatedEntry, updateData, this.buildHelperObject());
+      return onBeforeCalculateFC(updatedEntry, helperObject);
     }
   }
 
@@ -161,7 +161,7 @@ class FieldControls {
     const onBeforeSave = getOnBeforeSave(this.configurationEntity);
 
     if (onBeforeSave) {
-      onBeforeSave(updatedEntry, this.buildHelperObject({ req }));
+      onBeforeSave(updatedEntry, this.buildHelperObject(req));
     }
   }
 
@@ -169,12 +169,12 @@ class FieldControls {
     const onAfterSave = getOnAfterSave(this.configurationEntity);
 
     if (onAfterSave) {
-      onAfterSave(updatedEntry, this.buildHelperObject({ req }));
+      onAfterSave(updatedEntry, this.buildHelperObject(req));
     }
   }
 
-  buildHelperObject(obj) {
-    return Object.assign({}, { srv: this.srv, context: {} }, obj);
+  buildHelperObject(req, context = {}) {
+    return { srv: this.srv, context: Object.assign(context, { req }) };
   }
 
   eraseUnavailableDynamicFields(updatedEntry, updateData) {
@@ -204,13 +204,12 @@ class FieldControls {
 
   /**
    * Validates payload against field control configurations
-   * @param {Object} req - Request
    * @param {Object} data - The data to validate
    * @param {Object} dataUpdate - The data update to validate against
    * @returns {Object} Validation results containing any errors
    */
-  validatePayload(req, data, dataUpdate) {
-    const i18n = Utils.getBoundI18nBundle(req);
+  validatePayload(data, dataUpdate) {
+    const i18n = Utils.getBoundI18nBundle();
 
     const fielControlAnnotationValues = getFieldControlValues(data, this.csnEntity, i18n);
 
@@ -254,7 +253,7 @@ class FieldControls {
     return validationResults;
   }
 
-  async calculateAssociatedEntitiesFC(entity) {
+  async calculateAssociatedEntitiesFC(entity, req, context) {
     const requests = Object.entries(this.configuration.useImpl).map(async ([associationName, targetSrvEntity]) => {
       const record = entity[associationName];
 
@@ -264,7 +263,7 @@ class FieldControls {
 
       const fc = getSrvEntitiesFCs(this.srv)[targetSrvEntity];
 
-      return await fc.calculateFieldControls(record);
+      return await fc.calculateFieldControls(record, req, context);
     });
 
     return await Promise.all(requests);
@@ -273,9 +272,10 @@ class FieldControls {
   /**
    * Calculate field controls for an Entity or array of Entities
    * @param {Object|Array} entities - Single entity or array of entities
+   * @param {Object} context - Single entity or array of entities
    * @returns {Object|Array} Entity/Entities with field controls
    */
-  async calculateFieldControls(entities) {
+  async calculateFieldControls(entities, req, context = {}) {
     if (!entities) {
       return entities;
     }
@@ -285,9 +285,9 @@ class FieldControls {
       : [entities];
 
     const processEntitiesRequests = entitiesArray.map(async (entity) => {
-      const helperObject = this.buildHelperObject();
+      const helperObject = this.buildHelperObject(req, context);
 
-      await this.calculateAssociatedEntitiesFC(entity);
+      await this.calculateAssociatedEntitiesFC(entity, req, context);
 
       await this.callOnBeforeCalculateFC(entity, helperObject);
 

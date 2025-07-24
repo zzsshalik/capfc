@@ -17,18 +17,16 @@ module.exports = class Utils {
 
   /**
    * Retrieves a localized text for a given key and replaces placeholders with provided arguments.
-   *
-   * @param {object} req - The CAP request object containing the locale information.
+   * https://cap.cloud.sap/docs/node.js/cds-i18n#texts4-locale
    * @param {string} key - The i18n key to look up in the text bundle.
    * @param {Array} [args=[]] - An optional array of values to replace placeholders in the text (e.g. {0}, {1}).
    * @returns {string} The localized and formatted message string.
    */
-  static getText(req, key, args) {
-    const locale = req.locale || 'en';
+  static getText(key, args) {
+    const locale = cds.context.locale || 'en';
     const bundle = cds.i18n.bundle4();
     const texts = bundle.texts4(locale);
     const msg = texts[key] || key;
-
     return formatMessage(msg, args || []);
   }
 
@@ -38,9 +36,9 @@ module.exports = class Utils {
    * @param {Request} [req=cds.context] - The CDS request context containing locale information.
    * @returns {TextBundle} The localized TextBundle instance.
    */
-  static getBoundI18nBundle(req) {
+  static getBoundI18nBundle() {
     return {
-      getText: (...args) => Utils.getText(req, ...args)
+      getText: (...args) => Utils.getText(...args),
     };
   }
 };

@@ -34,9 +34,9 @@ function bindHandlers(fc) {
 
         // const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
 
-        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, dataForValidation));
+        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, dataForValidation), req);
 
-        const { errors } = fc.validatePayload(req, dbRecordWithVirtualUpdate, req.data);
+        const { errors } = fc.validatePayload(dbRecordWithVirtualUpdate, req.data);
 
         return {
             dbRecord,
@@ -61,17 +61,17 @@ function bindHandlers(fc) {
 
         const record = await next();
 
-        return await fc.calculateFieldControls(record);
+        return await fc.calculateFieldControls(record, req);
     }
 
     async function DRAFTPrepareHandler(req, next) {
         const dbRecord = await SELECT.one.from(req.target).where(req.params.at(0));
 
-        const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord);
+        const dbRecordWithFCs = await fc.calculateFieldControls(dbRecord, req);
 
-        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, req.data));
+        const dbRecordWithVirtualUpdate = await fc.calculateFieldControls(Object.assign({}, dbRecord, req.data), req);
 
-        const { errors } = fc.validatePayload(req, dbRecordWithFCs, dbRecordWithFCs);
+        const { errors } = fc.validatePayload(dbRecordWithFCs, dbRecordWithFCs);
 
         provideErrors(req, errors, fc.csnEntity, 'in');
 
@@ -81,17 +81,17 @@ function bindHandlers(fc) {
 
         await fc.callOnAfterSave(dbRecordWithVirtualUpdate, req);
 
-        return await fc.calculateFieldControls(record);
+        return await fc.calculateFieldControls(record, req);
     }
 
-    async function READHandler(entity) {
-        return await fc.calculateFieldControls(entity);
+    async function READHandler(entity, req) {
+        return await fc.calculateFieldControls(entity, req);
     }
 
     async function CreateDraftHandler(req, next) {
         const record = await next();
 
-        return await fc.calculateFieldControls(record);
+        return await fc.calculateFieldControls(record, req), {};
     }
 
     return {
@@ -129,13 +129,18 @@ async function validateWithFCs(req, dataForValidation) {
 }
 
 module.exports = {
+    async calculateFieldControls(data, req, { csnEntity, context = {} }) {
+        const fc = getEntityFC(csnEntity || req.target);
+
+        return await fc.calculateFieldControls(data, req, context);
+    },
     bindHandlers,
     async execAfterREADHandler(entity, req) {
         const fc = getEntityFC(req.target);
 
         const { READHandler } = bindHandlers(fc);
 
-        return await READHandler(entity);
+        return await READHandler(entity, req);
     },
 
     async execUPDATEHandler(req, next) {

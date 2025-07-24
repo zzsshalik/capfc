@@ -17,6 +17,7 @@ module.exports = function (service) {
     const fc = new FieldControls(srv, csnEntity, configurationEntity, configuration);
 
     setEntityFC(csnEntity, fc);
+    csnEntity.drafts && setEntityFC(csnEntity.drafts, fc);
     addSrvEntitiesFCs(srv, { [entityName]: fc });
 
     const {
