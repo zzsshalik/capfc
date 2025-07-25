@@ -19,9 +19,25 @@
  *  }
  * }
  */
+
+/**
+ * Cds configs:
+ * 
+ * "cds": {
+ *  "enable:capfc:plugin": true,
+ *  "enable:capfc:liveValidations": false,
+ *  "enable:capfc:autoErase": false,
+ * }
+ */
+
+/**
+ * Merge logic of configurations should work in the following way
+ * Object.assing({}, defaultLibValues, cdsConfiguration, annotationConfiguration, codeCallConfigurations)
+ */
+
 const FCSettings = {
-  autoErase: true,
-  liveValidations: true,
+  autoErase: cds.env['enable:capfc:autoErase'] ?? true,
+  liveValidations: cds.env['enable:capfc:liveValidations'] ?? true,
   useImpl: {}
 };
 
