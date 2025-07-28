@@ -21,6 +21,8 @@ const fieldControlDictionary = {
   Hidden: 0
 };
 
+const defaultEnvFC = Number(cds.env['enable:capfc:defaultFCValue'] ?? fieldControlDictionary.Optional);
+
 /**
  * Calculate field control for a specific field based on entity
  * @param {function} calculator - function which calculates FC value
@@ -55,7 +57,7 @@ function getFieldControlValues(data, csnEntityDefinition, i18n) {
         const fcValue =
           data[fieldControlValuePath] ||
           (isMandatory && fieldControlDictionary.Mandatory) ||
-          fieldControlDictionary.Optional;
+          defaultEnvFC;
 
         acc[key] = {
           label: label ? i18n.getText(label.replace('{i18n>', '').replace('}', '')) : '',
@@ -177,29 +179,39 @@ class FieldControls {
     return { srv: this.srv, context: Object.assign(context, { req }) };
   }
 
-  eraseUnavailableDynamicFields(updatedEntry, updateData) {
-    Object.entries(this.configurationEntity).reduce(
-      (requests, [fieldName]) => {
-        const fcValue = updatedEntry[`${fieldName}_fc`];
-        const fieldDefinition = this.csnEntity.elements[fieldName];
+  eraseUnavailableDynamicFields(updatedEntry, updateData, configuration) {
+    const { autoErase, blockUnannotatedValueChanges } = configuration;
 
-        if (!fieldDefinition) {
-          return requests;
-        }
+    const entityFCsSettings = getEntityFCAnnotationsMapping(this.csnEntity);
 
+    blockUnannotatedValueChanges && Object.entries(updateData).map(([fieldName]) => {
+      const fieldDefinition = this.csnEntity.elements[fieldName];
+      const fcFieldName = entityFCsSettings?.[fieldName]?.FCPath;
+
+      if(fieldDefinition.key) return;
+
+      if(!updatedEntry.hasOwnProperty(fcFieldName)) {
+        delete updateData[fieldName];
+      }
+    });
+
+    autoErase && Object.entries(this.configurationEntity).map(([fieldName]) => {
+      const fcValue = updatedEntry[`${fieldName}_fc`];
+      const fieldDefinition = this.csnEntity.elements[fieldName];
+
+      if(fieldDefinition) {
         const finalFieldName =
           fieldDefinition.type === 'cds.Association'
             ? fieldDefinition.$generatedForeignKeys.at(0).name
             : fieldName;
 
-        if (fcValue <= fieldControlDictionary.ReadOnly) {
+        if (autoErase && fcValue <= fieldControlDictionary.ReadOnly) {
           updateData[finalFieldName] = null;
         }
-
-        return requests;
-      },
-      []
-    );
+      } else if(blockUnannotatedValueChanges) {
+        updateData[fieldName] = null;
+      }
+    });
   }
 
   /**

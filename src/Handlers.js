@@ -55,7 +55,7 @@ function bindHandlers(fc) {
 
         fc.configuration.liveValidations && provideErrors(req, errors, fc.csnEntity);
 
-        fc.configuration.autoErase && fc.eraseUnavailableDynamicFields(dbRecordWithVirtualUpdate, req.data);
+        fc.eraseUnavailableDynamicFields(dbRecordWithVirtualUpdate, req.data, fc.configuration);
 
         await fc.callOnBeforeSave(dbRecordWithVirtualUpdate, req);
 
@@ -104,12 +104,17 @@ function bindHandlers(fc) {
     }
 }
 
+function bindEntityHandlers(csnEntity) {
+    const fc = getEntityFC(csnEntity);
+
+    return bindHandlers(fc);
+}
+
 function provideErrors(req, errors, targetPrefix) {
-    const fc = getEntityFC(req.target);
+    const csnEntity = req.target;
+    const { provideErrors } = bindEntityHandlers(csnEntity);
 
-    const { provideErrors } = bindHandlers(fc);
-
-    return provideErrors(req, errors, fc.csnEntity, targetPrefix);
+    return provideErrors(req, errors, csnEntity, targetPrefix);
 }
 
 function throwErrorsAndStopIfExists(req, ...args) {
@@ -121,9 +126,7 @@ function throwErrorsAndStopIfExists(req, ...args) {
 }
 
 async function validateWithFCs(req, dataForValidation) {
-    const fc = getEntityFC(req.target);
-
-    const { validateWithFCs } = bindHandlers(fc);
+    const { validateWithFCs } = bindEntityHandlers(req.target);
 
     return (await validateWithFCs(req, dataForValidation)).errors;
 }
@@ -135,18 +138,15 @@ module.exports = {
         return await fc.calculateFieldControls(data, req, context);
     },
     bindHandlers,
+    bindEntityHandlers,
     async execAfterREADHandler(entity, req, context) {
-        const fc = getEntityFC(req.target);
-
-        const { READHandler } = bindHandlers(fc);
+        const { READHandler } = bindEntityHandlers(req.target);
 
         return await READHandler(entity, req, context);
     },
 
     async execUPDATEHandler(req, next, context) {
-        const fc = getEntityFC(req.target);
-
-        const { UPDATEHandler } = bindHandlers(fc);
+        const { UPDATEHandler } = bindEntityHandlers(req.target);
 
         return await UPDATEHandler(req, next, context);
 
